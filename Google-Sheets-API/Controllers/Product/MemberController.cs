@@ -23,7 +23,21 @@ namespace Google_Sheets_API.Controllers
         #endregion
 
         #region 'Get' Actions
+        [HttpGet]
+        public ActionResult GetProduct()
+        {
+            SpreadsheetsResource.GetRequest getRequest = this.SheetService.Spreadsheets.Get(this.SpreadSheetId);
+            getRequest.IncludeGridData = true;
 
+            Spreadsheet spreadsheet = getRequest.Execute();
+
+            Sheet? sheet = spreadsheet.Sheets.FirstOrDefault(x => x.Properties.Title == "Página1");
+
+            if (sheet is null)
+                return NotFound("Nenhuma planilha foi encontrada");
+
+            return Ok(sheet.Data[0].RowData);
+        }
         #endregion
 
         #region 'Post' Actions
@@ -94,7 +108,7 @@ namespace Google_Sheets_API.Controllers
         }
 
         [HttpPost("CreateValue")]
-        public ActionResult<Member> PostOProduct(int startRowIndex, int endRowIndex, Member member)
+        public ActionResult<Member> PostProduct(int startRowIndex, int endRowIndex, Member member)
         {
             if (member is null)
                 return BadRequest("Entidade inválida");
