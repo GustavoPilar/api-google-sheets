@@ -43,7 +43,17 @@ namespace Google_Sheets_API.Controllers
             if (sheet is null)
                 return NotFound("Nenhuma planilha foi encontrada");
 
-            return Ok(sheet);
+            List<string> fields = new List<string>();
+
+            foreach (RowData row in sheet.Data[0].RowData)
+            {
+                foreach (CellData cell in row.Values)
+                {
+                    fields.Add(cell.FormattedValue);
+                }
+            }
+
+            return Ok(fields);
         }
         #endregion
 
