@@ -1,6 +1,7 @@
 ﻿using Google.Apis.Sheets.v4;
 using Google.Apis.Sheets.v4.Data;
 using Google_Sheets_API.Model;
+using Google_Sheets_API.Model.Requests;
 using Google_Sheets_API.Services;
 using Microsoft.AspNetCore.Mvc;
 
@@ -12,19 +13,21 @@ namespace Google_Sheets_API.Controllers
     {
         #region Fields
         public readonly SheetsService SheetService;
+        public readonly GoogleSheetsApiService GoogleSheetsApiService;
         public readonly string SpreadSheetId = "19LIxqdqwdNPGRnmXhzTDHsO4EQB0Fwf793wdVlJanFU";
         #endregion
 
         #region Constructor
         public MemberController(GoogleSheetsApiService googleSheetsApiService)
         {
-            this.SheetService = googleSheetsApiService.GetSheetsService();
+            this.GoogleSheetsApiService = googleSheetsApiService;
+            this.SheetService = this.GoogleSheetsApiService.GetSheetsService();
         }
         #endregion
 
         #region 'Get' Actions
         [HttpGet]
-        public ActionResult GetProduct()
+        public ActionResult GetMember()
         {
             SpreadsheetsResource.GetRequest getRequest = this.SheetService.Spreadsheets.Get(this.SpreadSheetId);
             getRequest.IncludeGridData = true;
@@ -41,36 +44,28 @@ namespace Google_Sheets_API.Controllers
         #endregion
 
         #region 'Post' Actions
-        [HttpPost("CreateLine")]
-        public ActionResult CreateNewLine()
+        [HttpPost("CreateRow")]
+        public async Task<ActionResult> CreateNewLine(Dimension dimension)
         {
-            Spreadsheet spreadsheet = this.SheetService.Spreadsheets.Get(SpreadSheetId).Execute();
-            Sheet sheet = spreadsheet.Sheets.FirstOrDefault(x => x.Properties.Title == "Página1")!;
+            if (dimension is null)
+                return BadRequest("Dimension nula");
 
-            InsertDimensionRequest insertDimensionRequest = new InsertDimensionRequest()
-            {
-                Range = new DimensionRange
-                {
-                    Dimension = "ROWS",
-                    SheetId = sheet.Properties.SheetId,
-                    StartIndex = 1,
-                    EndIndex = 2
-                },
-                InheritFromBefore = false
-            };
+            Spreadsheet spreadsheet = await this.GoogleSheetsApiService.GetSpreadsheetRequest(this.SpreadSheetId).ExecuteAsync();
+            Sheet? sheet = this.GoogleSheetsApiService.GetSheetByTitle(spreadsheet.Sheets, dimension.TitleSheet!);
+
+            if (sheet is null)
+                return NotFound($"A aba {dimension.TitleSheet} não encontrada.");
 
             var batchRequests = new BatchUpdateSpreadsheetRequest
             {
                 Requests = new List<Request>()
                 {
-                    new Request()
-                    {
-                        InsertDimension = insertDimensionRequest,
-                    }
+                    new Request() { InsertDimension = this.GoogleSheetsApiService.InsertDimensionRequest(Utils.Enums.DimensionsEnum.ROWS, dimension, sheet.Properties.SheetId) },
+                    new Request() { UpdateCells = this.GoogleSheetsApiService.UpdateCellsRequest(sheet.Properties.SheetId, dimension) }
                 }
             };
 
-            var batchUpdateSpreadsheetRequest = this.SheetService.Spreadsheets.BatchUpdate(batchRequests, SpreadSheetId).Execute();
+            await this.GoogleSheetsApiService.BatchUpdateExecute(batchRequests, SpreadSheetId);
 
             return Ok("Linha adicionada");
         }
