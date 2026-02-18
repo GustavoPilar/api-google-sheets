@@ -4,6 +4,8 @@ using Google.Apis.Sheets.v4;
 using Google.Apis.Sheets.v4.Data;
 using Google_Sheets_API.Model.Requests;
 using Google_Sheets_API.Utils.Enums;
+using Microsoft.AspNetCore.Http.HttpResults;
+using System.Runtime.CompilerServices;
 
 namespace Google_Sheets_API.Services
 {
@@ -40,109 +42,162 @@ namespace Google_Sheets_API.Services
         {
             return this.sheetsService;
         }
-
-        /// <summary>
-        /// Retorna uma aba pelo titulo.
-        /// </summary>
-        /// <param name="sheets">Lista de abas</param>
-        /// <param name="title">Titulo da aba</param>
-        /// <returns>Sheet</returns>
-        public Sheet? GetSheetByTitle(IList<Sheet> sheets, string title)
-        {
-            return sheets.FirstOrDefault(x => x.Properties.Title == title);
-        }
         #endregion
 
-        #region 'Request' Members
+        #region Members
 
-        #region SpreadsheetsResource.GetRequest
         /// <summary>
-        /// Retorna a requisição de uma Planilha. Não retorna o Planilha em si, apenas a requisição.
+        /// Cria uma linha nova vazia, no início da tabela
         /// </summary>
-        /// <param name="spreeadsheetId">ID da planilha</param>
-        /// <returns>SpreadSheet</returns>
-        public SpreadsheetsResource.GetRequest GetSpreadsheetRequest(string spreeadsheetId)
-        {
-            return this.sheetsService.Spreadsheets.Get(spreeadsheetId);
-        }
-        #endregion
-
-        #region InsertDimensionRequest
-        /// <summary>
-        /// Retorna uma requisição de inserção de dimensão.
-        /// </summary>
-        /// <param name="dimensionEnum">Tipo de dimensação - DimensionsEnum</param>
-        /// <param name="dimension">Dimensão</param>
         /// <param name="sheetId">ID da aba</param>
-        /// <returns>InsertDimensionRequest</returns>
-        public InsertDimensionRequest InsertDimensionRequest(DimensionsEnum dimensionEnum, Dimension dimension, int? sheetId)
+        /// <param name="startColumnIndex">Coluna que começa (base 0)</param>
+        /// <param name="endColumnIndex">Coluna que termina (base 0)</param>
+        /// <param name="spreadsheetId">ID da planilha</param>
+        /// <returns></returns>
+        public async Task CreateEmptyRow(int? sheetId, int startColumnIndex, int endColumnIndex, string spreadsheetId)
         {
-            return new InsertDimensionRequest()
+            InsertDimensionRequest insertDimensionRequest = new InsertDimensionRequest
             {
                 Range = new DimensionRange
                 {
-                    Dimension = dimensionEnum == DimensionsEnum.ROWS ? "ROWS" : "COLUMNS",
+                    Dimension = "ROWS",
                     SheetId = sheetId,
-                    StartIndex = dimension.StartIndex,
-                    EndIndex = dimension.EndIndex
+                    StartIndex = 1,
+                    EndIndex = 2
                 },
-                InheritFromBefore = dimension.InheritFromBefore
+                InheritFromBefore = true,
             };
-        }
-        #endregion
 
-
-        #region UpdateCellsRequest
-        public UpdateCellsRequest UpdateCellsRequest(int? sheetId, Dimension dimension)
-        {
-            return new UpdateCellsRequest
+            UpdateCellsRequest updateCellsRequest = new UpdateCellsRequest
             {
                 Range = new GridRange
                 {
                     SheetId = sheetId,
-                    StartRowIndex = dimension.StartIndex,
-                    StartColumnIndex = 0,
-                    EndRowIndex = dimension.EndIndex,
-                    EndColumnIndex = 5
-
+                    StartRowIndex = 1,
+                    EndRowIndex = 2,
+                    StartColumnIndex = startColumnIndex,
+                    EndColumnIndex = endColumnIndex,
                 },
                 Rows = new List<RowData>
                 {
                     new RowData
                     {
-                        Values = new List<CellData>
-                        {
-                            new CellData { UserEnteredFormat = this.SetBackgroundColorDefault() },
-                            new CellData { UserEnteredFormat = this.SetBackgroundColorDefault() },
-                            new CellData { UserEnteredFormat = this.SetBackgroundColorDefault() },
-                            new CellData { UserEnteredFormat = this.SetBackgroundColorDefault() },
-                            new CellData { UserEnteredFormat = this.SetBackgroundColorDefault() },
-                        }
+                        Values = this.CreateEmptyCellDataList(endColumnIndex)
                     }
                 },
-                Fields = "userEnteredFormat.backgroundColor.green, userEnteredFormat.backgroundColor.red,userEnteredFormat.backgroundColor.blue"
+                Fields = "userEnteredFormat.backgroundColor.red,userEnteredFormat.backgroundColor.green,userEnteredFormat.backgroundColor.red"
             };
-        }
-        #endregion
-        #endregion
 
-        #region 'Execute' Members
-        public async Task<BatchUpdateSpreadsheetResponse> BatchUpdateExecute(BatchUpdateSpreadsheetRequest requests, string spreadsheetId)
-        {
-            return await this.sheetsService.Spreadsheets.BatchUpdate(requests, spreadsheetId).ExecuteAsync();
+            await this.sheetsService.Spreadsheets.BatchUpdate(new BatchUpdateSpreadsheetRequest
+            {
+                Requests = new List<Request>
+                {
+                    new Request { InsertDimension = insertDimensionRequest },
+                    new Request { UpdateCells = updateCellsRequest }
+                }
+            }, spreadsheetId).ExecuteAsync();
         }
-        #endregion
 
-        #region 'Style' Members
         /// <summary>
-        /// Retorna a formatação da célula com fundo verde
+        /// Cria uma lista de células vazias, com fundo verde, de acordo com a quantidade especificada
         /// </summary>
-        /// <returns>CellFormat</returns>
-        public CellFormat SetBackgroundColorDefault()
+        /// <param name="count">Quantidade</param>
+        /// <returns>List<CellData></returns>
+        public List<CellData> CreateEmptyCellDataList(int count)
         {
-            return new CellFormat { BackgroundColor = new Color { Red = 217f / 255f, Green = 234f / 255f, Blue = 211f / 255f } };
+            List<CellData> values = new List<CellData>();
+
+            for (int i = 0; i < count; i++)
+            {
+                values.Add(new CellData { UserEnteredFormat = new CellFormat { BackgroundColor = new Color { Red = 217f / 255f, Green = 234f / 255f, Blue = 211f / 255f } } } );
+            }
+
+            return values;
+        }
+
+        /// <summary>
+        /// Atualiza a linha com os valores
+        /// </summary>
+        /// <param name="cellDataList">Lista com os valores de cada célula</param>
+        /// <param name="sheetId">ID da aba</param>
+        /// <param name="spreadsheetId">ID planilha</param>
+        /// <returns>Task</returns>
+        public async Task updateCells(List<CellData> cellDataList, string fields, int? sheetId, string spreadsheetId)
+        {
+            UpdateCellsRequest updateCellsRequest = new UpdateCellsRequest
+            {
+                Range = new GridRange
+                {
+                    SheetId = sheetId,
+                    StartRowIndex = 1,
+                    EndRowIndex = 2,
+                    StartColumnIndex = 0,
+                    EndColumnIndex = 5
+                },
+                Rows = new List<RowData>
+                {
+                    new RowData
+                    {
+                        Values = cellDataList
+                    }
+                },
+                Fields = fields
+            };
+
+            await this.sheetsService.Spreadsheets.BatchUpdate(new BatchUpdateSpreadsheetRequest
+            {
+                Requests = new List<Request>
+                {
+                    new Request { UpdateCells = updateCellsRequest }
+                }
+            }, spreadsheetId).ExecuteAsync();
+        }
+
+        public async Task SortColumn(int startColumnIndex, int endColumnIndex, int? sheetId, string spreadsheetId)
+        {
+            SortRangeRequest sortRangeRequest = new SortRangeRequest
+            {
+                Range = new GridRange
+                {
+                    SheetId = sheetId,
+                    StartRowIndex = 1, // Ignorando o cabeçalho
+                    EndRowIndex = 1000,
+                    StartColumnIndex = startColumnIndex,
+                    EndColumnIndex = endColumnIndex
+                },
+                SortSpecs = new List<SortSpec>
+                {
+                    new SortSpec { DimensionIndex = startColumnIndex, SortOrder = "ASCENDING" }
+                }
+            };
+
+            await this.sheetsService.Spreadsheets.BatchUpdate(new BatchUpdateSpreadsheetRequest
+            {
+                Requests = new List<Request> { new Request { SortRange = sortRangeRequest } }
+            }, spreadsheetId).ExecuteAsync();
+        }
+
+        public async Task DeleteRow(int startRowIndex, int endRowIndex, int? sheetId, string spreadsheetId)
+        {
+            DeleteDimensionRequest deleteDimensionRequest = new DeleteDimensionRequest
+            {
+                Range = new DimensionRange
+                {
+                    Dimension = "ROWS",
+                    SheetId = sheetId,
+                    StartIndex = startRowIndex,
+                    EndIndex = endRowIndex
+                }
+            };
+
+            await this.sheetsService.Spreadsheets.BatchUpdate(new BatchUpdateSpreadsheetRequest
+            {
+                Requests = new List<Request>
+                {
+                    new Request { DeleteDimension = deleteDimensionRequest }
+                }
+            }, spreadsheetId).ExecuteAsync();
         }
         #endregion
-
     }
 }

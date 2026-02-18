@@ -10,6 +10,7 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 builder.Services.AddScoped<GoogleSheetsApiService>();
+builder.Services.AddScoped<MemberService>();
 
 var app = builder.Build();
 
