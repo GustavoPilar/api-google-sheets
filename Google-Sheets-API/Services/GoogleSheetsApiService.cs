@@ -16,7 +16,7 @@ namespace Google_Sheets_API.Services
             GoogleCredential credential;
 
             using (FileStream stream = new FileStream(
-                "credentials.josn",
+                "api-sheets.json",
                 FileMode.Open,
                 FileAccess.Read))
             {

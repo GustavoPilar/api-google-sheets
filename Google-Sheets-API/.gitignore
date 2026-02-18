@@ -3,6 +3,9 @@
 ##
 ## Get latest from `dotnet new gitignore`
 
+#credencials files
+api-sheets.json
+
 # dotenv files
 .env
 
