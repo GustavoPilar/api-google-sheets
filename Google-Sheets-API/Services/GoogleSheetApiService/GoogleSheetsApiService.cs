@@ -2,10 +2,6 @@
 using Google.Apis.Services;
 using Google.Apis.Sheets.v4;
 using Google.Apis.Sheets.v4.Data;
-using Google_Sheets_API.Model.Requests;
-using Google_Sheets_API.Utils.Enums;
-using Microsoft.AspNetCore.Http.HttpResults;
-using System.Runtime.CompilerServices;
 
 namespace Google_Sheets_API.Services
 {
@@ -54,7 +50,7 @@ namespace Google_Sheets_API.Services
         /// <param name="endColumnIndex">Coluna que termina (base 0)</param>
         /// <param name="spreadsheetId">ID da planilha</param>
         /// <returns></returns>
-        public async Task CreateEmptyRow(int? sheetId, int startColumnIndex, int endColumnIndex, string spreadsheetId)
+        public async Task CreateEmptyRowAsync(int? sheetId, int startColumnIndex, int endColumnIndex, string spreadsheetId)
         {
             InsertDimensionRequest insertDimensionRequest = new InsertDimensionRequest
             {
@@ -122,7 +118,7 @@ namespace Google_Sheets_API.Services
         /// <param name="sheetId">ID da aba</param>
         /// <param name="spreadsheetId">ID planilha</param>
         /// <returns>Task</returns>
-        public async Task updateCells(List<CellData> cellDataList, string fields, int? sheetId, string spreadsheetId)
+        public async Task updateCellsAsync(List<CellData> cellDataList, string fields, int? sheetId, string spreadsheetId)
         {
             UpdateCellsRequest updateCellsRequest = new UpdateCellsRequest
             {
@@ -153,7 +149,15 @@ namespace Google_Sheets_API.Services
             }, spreadsheetId).ExecuteAsync();
         }
 
-        public async Task SortColumn(int startColumnIndex, int endColumnIndex, int? sheetId, string spreadsheetId)
+        /// <summary>
+        /// Ordena a planilha pela coluna informada
+        /// </summary>
+        /// <param name="startColumnIndex">Coluna inicial</param>
+        /// <param name="endColumnIndex">Coluna final</param>
+        /// <param name="sheetId">ID da aba</param>
+        /// <param name="spreadsheetId">ID da planilha</param>
+        /// <returns>Task</returns>
+        public async Task SortColumnAsync(int startColumnIndex, int endColumnIndex, int? sheetId, string spreadsheetId)
         {
             SortRangeRequest sortRangeRequest = new SortRangeRequest
             {
@@ -177,7 +181,15 @@ namespace Google_Sheets_API.Services
             }, spreadsheetId).ExecuteAsync();
         }
 
-        public async Task DeleteRow(int startRowIndex, int endRowIndex, int? sheetId, string spreadsheetId)
+        /// <summary>
+        /// Remove um ou mais linhas com registros ou sem
+        /// </summary>
+        /// <param name="startRowIndex">Linha inicial</param>
+        /// <param name="endRowIndex">Linha final</param>
+        /// <param name="sheetId">ID da aba</param>
+        /// <param name="spreadsheetId">ID da planilha</param>
+        /// <returns>Task</returns>
+        public async Task DeleteRowAsync(int startRowIndex, int endRowIndex, int? sheetId, string spreadsheetId)
         {
             DeleteDimensionRequest deleteDimensionRequest = new DeleteDimensionRequest
             {
@@ -197,6 +209,33 @@ namespace Google_Sheets_API.Services
                     new Request { DeleteDimension = deleteDimensionRequest }
                 }
             }, spreadsheetId).ExecuteAsync();
+        }
+
+        public async Task<ValueRange> GetValuesAsync(string namePage, string spreadsheeId)
+        {
+            return await this.sheetsService.Spreadsheets.Values.Get(spreadsheeId, $"{namePage}!A1:Z1000").ExecuteAsync();
+        }
+
+        public async Task<ValueRange> GetValueByRowAsync(int row, string namePage, string spreadsheetId)
+        {
+            ValueRange header = await this.sheetsService.Spreadsheets.Values.Get(spreadsheetId, $"{namePage}!A1:Z1").ExecuteAsync();
+            ValueRange value = await this.sheetsService.Spreadsheets.Values.Get(spreadsheetId, $"{namePage}!A{row}:Z{row}").ExecuteAsync();
+
+            value.Values.Add(header.Values[0]);
+
+            return value;
+        }
+
+        public Dictionary<string, int> GetHeaders(IList<object> values)
+        {
+            Dictionary<string, int> headers = new Dictionary<string, int>();
+
+            for (int i = 0; i < values.Count; i++)
+            {
+                headers[values[i].ToString()] = i;
+            }
+
+            return headers;
         }
         #endregion
     }

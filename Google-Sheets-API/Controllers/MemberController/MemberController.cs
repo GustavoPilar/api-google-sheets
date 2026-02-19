@@ -1,9 +1,7 @@
 ﻿using Google.Apis.Sheets.v4;
 using Google.Apis.Sheets.v4.Data;
-using Google_Sheets_API.Model;
-using Google_Sheets_API.Model.Requests;
+using Google_Sheets_API.Model.Entities;
 using Google_Sheets_API.Services;
-using Google_Sheets_API.Utils.Enums;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Google_Sheets_API.Controllers
@@ -31,29 +29,43 @@ namespace Google_Sheets_API.Controllers
 
         #region 'Get' Actions
         [HttpGet]
-        public ActionResult GetMember()
+        public async Task<ActionResult<IEnumerable<Member>>> GetMembers()
         {
-            SpreadsheetsResource.GetRequest getRequest = this.SheetService.Spreadsheets.Get(this.SpreadSheetId);
-            getRequest.IncludeGridData = true;
+            ValueRange values = await this.GoogleSheetsApiService.GetValuesAsync(Member.GetNamePage(), this.SpreadSheetId);
 
-            Spreadsheet spreadsheet = getRequest.Execute();
+            if (values is null)
+                return NotFound("Nenhum registro encontrado");
 
-            Sheet? sheet = spreadsheet.Sheets.FirstOrDefault(x => x.Properties.Title == "Página1");
+            Dictionary<string, int> headers = this.GoogleSheetsApiService.GetHeaders(values.Values[0]);
 
-            if (sheet is null)
-                return NotFound("Nenhuma planilha foi encontrada");
+            List<Member> members = new List<Member>();
 
-            List<string> fields = new List<string>();
-
-            foreach (RowData row in sheet.Data[0].RowData)
+            for (int i = 1; i < values.Values.Count; i++)
             {
-                foreach (CellData cell in row.Values)
-                {
-                    fields.Add(cell.FormattedValue);
-                }
+                Member member = this.memberService.TransformValuesToEntity(values.Values[i], headers);
+                member.Id = i + 1;
+                members.Add(member);
             }
 
-            return Ok(fields);
+            return Ok(members);
+        }
+
+        [HttpGet("{row:int}")]
+        public async Task<ActionResult<Member>> GetMemberById(int row)
+        {
+            if (row <= 1)
+                return BadRequest("Id inválido");
+
+            ValueRange values = await this.GoogleSheetsApiService.GetValueByRowAsync(row, Member.GetNamePage(), this.SpreadSheetId);
+
+            if (values is null)
+                return NotFound("Nenhum registro encontrado");
+
+            Dictionary<string, int> headers = this.GoogleSheetsApiService.GetHeaders(values.Values[1]);
+            Member member = this.memberService.TransformValuesToEntity(values.Values[0], headers);
+            member.Id = row;
+
+            return Ok(member);
         }
         #endregion
 
@@ -67,9 +79,9 @@ namespace Google_Sheets_API.Controllers
                 Sheet sheet = spreadsheet.Sheets.FirstOrDefault(x => x.Properties.Title == "Página1")!;
                 string fields = "userEnteredValue.stringValue,userEnteredValue.NumberValue,userEnteredFormat.numberFormat,userEnteredFormat.backgroundColor";
 
-                await this.GoogleSheetsApiService.CreateEmptyRow(sheet.Properties.SheetId, 0, 5, this.SpreadSheetId);
-                await this.GoogleSheetsApiService.updateCells(this.memberService.CreateNewMember(member), fields, sheet.Properties.SheetId, this.SpreadSheetId);
-                await this.GoogleSheetsApiService.SortColumn(0, 5, sheet.Properties.SheetId, this.SpreadSheetId);
+                await this.GoogleSheetsApiService.CreateEmptyRowAsync(sheet.Properties.SheetId, 0, 5, this.SpreadSheetId);
+                await this.GoogleSheetsApiService.updateCellsAsync(this.memberService.CreateNewMember(member), fields, sheet.Properties.SheetId, this.SpreadSheetId);
+                await this.GoogleSheetsApiService.SortColumnAsync(0, 5, sheet.Properties.SheetId, this.SpreadSheetId);
 
                 return Ok(member);
             }
@@ -82,6 +94,9 @@ namespace Google_Sheets_API.Controllers
 
         #endregion
 
+        #region 'Put' Actions
+        #endregion
+
         #region 'Delete' Actions
         [HttpDelete("DeleteLine")]
         public async Task<ActionResult> DeleteLine(int startRowIndex, int deleteRowIndex)
@@ -89,7 +104,7 @@ namespace Google_Sheets_API.Controllers
             Spreadsheet spreadsheet = this.SheetService.Spreadsheets.Get(this.SpreadSheetId).Execute();
             Sheet sheet = spreadsheet.Sheets.FirstOrDefault(x => x.Properties.Title == "Página1")!;
 
-            await this.GoogleSheetsApiService.DeleteRow(startRowIndex, deleteRowIndex, sheet.Properties.SheetId, this.SpreadSheetId);
+            await this.GoogleSheetsApiService.DeleteRowAsync(startRowIndex, deleteRowIndex, sheet.Properties.SheetId, this.SpreadSheetId);
 
             return Ok($"Linha(s) {startRowIndex} - {deleteRowIndex} deletadas");
         }

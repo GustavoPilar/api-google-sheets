@@ -1,12 +1,27 @@
-﻿using Google.Apis.Sheets.v4;
-using Google.Apis.Sheets.v4.Data;
-using Google_Sheets_API.Model;
+﻿using Google.Apis.Sheets.v4.Data;
+using Google_Sheets_API.Model.Entities;
+using Google_Sheets_API.Services.Base;
 
 namespace Google_Sheets_API.Services
 {
-    public class MemberService
+    public class MemberService : IServiceBase<Member>
     {
-        #region Fields
+        #region Members
+        public Member TransformValuesToEntity(IList<object> values, Dictionary<string, int> headers)
+        {
+            Member member = new Member()
+            {
+                Name = values[headers["Nome"]]?.ToString(),
+                Status = bool.TryParse(values[headers["Status"]]?.ToString(), out var status) && status,
+                Birthday = DateTime.TryParse(values[headers["Data de nascimento"]].ToString(), out var date) ? date : DateTime.Now,
+                Age = int.TryParse(values[headers["Idade"]].ToString(),out var age) ? age : 0,
+                Class = values[headers["Classe"]].ToString()
+            };
+
+            return member;
+        }
+
+
         public List<CellData> CreateNewMember(Member member)
         {
 
