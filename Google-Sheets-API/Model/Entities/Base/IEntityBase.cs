@@ -3,7 +3,6 @@
     public interface IEntityBase
     {
         public int Id { get; set; }
-
-        static string GetNamePage() { return ""; }
+        static abstract string NamePage();
     }
 }

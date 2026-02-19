@@ -42,6 +42,11 @@ namespace Google_Sheets_API.Services
 
         #region Members
 
+        public Sheet? GetSheet(string title, string spreadsheetId)
+        {
+            return this.sheetsService.Spreadsheets.Get(spreadsheetId).Execute().Sheets.FirstOrDefault(x => x.Properties.Title == title);
+        }
+
         /// <summary>
         /// Cria uma linha nova vazia, no início da tabela
         /// </summary>
@@ -50,7 +55,7 @@ namespace Google_Sheets_API.Services
         /// <param name="endColumnIndex">Coluna que termina (base 0)</param>
         /// <param name="spreadsheetId">ID da planilha</param>
         /// <returns></returns>
-        public async Task CreateEmptyRowAsync(int? sheetId, int startColumnIndex, int endColumnIndex, string spreadsheetId)
+        public async Task CreateEmptyRowAsync(int? sheetId, int endColumnIndex, string spreadsheetId)
         {
             InsertDimensionRequest insertDimensionRequest = new InsertDimensionRequest
             {
@@ -71,7 +76,7 @@ namespace Google_Sheets_API.Services
                     SheetId = sheetId,
                     StartRowIndex = 1,
                     EndRowIndex = 2,
-                    StartColumnIndex = startColumnIndex,
+                    StartColumnIndex = 0,
                     EndColumnIndex = endColumnIndex,
                 },
                 Rows = new List<RowData>
@@ -81,7 +86,7 @@ namespace Google_Sheets_API.Services
                         Values = this.CreateEmptyCellDataList(endColumnIndex)
                     }
                 },
-                Fields = "userEnteredFormat.backgroundColor.red,userEnteredFormat.backgroundColor.green,userEnteredFormat.backgroundColor.red"
+                Fields = "userEnteredFormat.backgroundColor.red,userEnteredFormat.backgroundColor.green,userEnteredFormat.backgroundColor.red,userEnteredFormat.borders.top,userEnteredFormat.borders.right,userEnteredFormat.borders.bottom,userEnteredFormat.borders.left"
             };
 
             await this.sheetsService.Spreadsheets.BatchUpdate(new BatchUpdateSpreadsheetRequest
@@ -105,7 +110,21 @@ namespace Google_Sheets_API.Services
 
             for (int i = 0; i < count; i++)
             {
-                values.Add(new CellData { UserEnteredFormat = new CellFormat { BackgroundColor = new Color { Red = 217f / 255f, Green = 234f / 255f, Blue = 211f / 255f } } } );
+                values.Add(new CellData
+                { UserEnteredFormat = new CellFormat
+                    {
+                        Borders = new Borders {
+                            Top = new Border { Style = "SOLID" },
+                            Right = new Border { Style = "SOLID" },
+                            Bottom = new Border { Style = "SOLID" },
+                            Left = new Border { Style = "SOLID" }
+                        },
+                        BackgroundColor = new Color
+                        {
+                            Red = 217f / 255f,
+                            Green = 234f / 255f,
+                            Blue = 211f / 255f
+                        } } } );
             }
 
             return values;
@@ -219,6 +238,10 @@ namespace Google_Sheets_API.Services
         public async Task<ValueRange> GetValueByRowAsync(int row, string namePage, string spreadsheetId)
         {
             ValueRange header = await this.sheetsService.Spreadsheets.Values.Get(spreadsheetId, $"{namePage}!A1:Z1").ExecuteAsync();
+
+            if (row == 1)
+                return header;
+
             ValueRange value = await this.sheetsService.Spreadsheets.Values.Get(spreadsheetId, $"{namePage}!A{row}:Z{row}").ExecuteAsync();
 
             value.Values.Add(header.Values[0]);

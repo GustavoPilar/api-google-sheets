@@ -12,7 +12,7 @@ namespace Google_Sheets_API.Model.Entities
         public int Age { get; set; }
         public string? Class { get; set; }
 
-        public static string GetNamePage()
+        public static string NamePage()
         {
             return "Membros";
         }

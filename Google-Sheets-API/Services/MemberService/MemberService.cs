@@ -22,15 +22,15 @@ namespace Google_Sheets_API.Services
         }
 
 
-        public List<CellData> CreateNewMember(Member member)
+        public List<CellData> CreateCellDataList(Member member)
         {
 
             List<CellData> list = new List<CellData>
             {
                 new CellData { UserEnteredValue = new ExtendedValue { StringValue = member.Name } },
                 new CellData { UserEnteredValue = new ExtendedValue { StringValue = member.Status == true ? "ATIVO" : "INATIVO" } },
-                new CellData { UserEnteredValue = new ExtendedValue { NumberValue = (member.Birthday - new DateTime(1899, 12, 30)).TotalDays }, UserEnteredFormat = new CellFormat { NumberFormat = new NumberFormat { Type = "DATE", Pattern = "dd/MM/yyyy" } } },
-                new CellData { UserEnteredValue = new ExtendedValue { NumberValue = member.Age } },
+                new CellData { UserEnteredValue = new ExtendedValue { NumberValue = (member.Birthday - new DateTime(1899, 12, 30)).TotalDays }, UserEnteredFormat = new CellFormat { NumberFormat = new NumberFormat { Type = "DATE", Pattern = "dd/MM/yyyy" }, HorizontalAlignment = "RIGHT" } },
+                new CellData { UserEnteredValue = new ExtendedValue { NumberValue = member.Age }, UserEnteredFormat = new CellFormat { HorizontalAlignment = "RIGHT" } },
                 new CellData { UserEnteredValue = new ExtendedValue { StringValue = member.Class } }
             };
 
