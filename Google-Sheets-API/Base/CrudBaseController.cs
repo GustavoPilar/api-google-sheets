@@ -116,6 +116,28 @@ namespace Google_Sheets_API.Base
         #endregion
 
         #region 'Put' Actions
+        [HttpPut]
+        public async Task<ActionResult<TEntity>> Put(TEntity entity)
+        {
+            try
+            {
+                Sheet? sheet = this.GoogleSheetsApiService.GetSheet(TEntity.NamePage(), SpreadSheetId);
+
+                if (sheet is null)
+                    return BadRequest($"A aba {TEntity.NamePage()} Não foi encontrada");
+
+                string fields = "userEnteredValue.stringValue,userEnteredValue.NumberValue,userEnteredFormat.numberFormat";
+                await this.GoogleSheetsApiService.updateCellsAsync(this.EntityService.CreateCellDataList(entity), fields, sheet.Properties.SheetId, this.SpreadSheetId);
+                await this.GoogleSheetsApiService.SortColumnAsync(0, 5, sheet.Properties.SheetId, this.SpreadSheetId);
+
+                return Ok(entity);
+            }
+            catch (Exception exception)
+            {
+                Console.WriteLine(exception.StackTrace);
+                return BadRequest($"ERROR => Ocorreu um erro durante a execução: {exception.Message}");
+            }
+        }
         #endregion
 
         #region 'Delete' Actions
